@@ -17,7 +17,7 @@ I am building this to learn, not to ship fast. Do not "vibe code" this project �
 
 Following the phased roadmap (target agent → attack taxonomy/seed corpus → deterministic scorer → LLM-judge scorer → static harness MVP → search theory → automated attacker loop → lineage/orchestration → reporting → patch & re-run → polish). Check with me which phase is active before assuming — update this section as phases complete.
 
-- [ ] Phase 01 — Target agent
+- [x] Phase 01 — Target agent
 - [ ] Phase 02 — Attack taxonomy / seed corpus
 - [ ] Phase 03 — Deterministic scorer
 - [ ] Phase 04 — LLM-judge scorer
@@ -44,7 +44,9 @@ Following the phased roadmap (target agent → attack taxonomy/seed corpus → d
 ## Tech stack
 
 - Python 3.11+
-- Anthropic SDK for both target and attacker LLM calls (swap-in OpenAI SDK is fine if I ask, but don't mix both without discussing)
+- OpenAI SDK (`openai>=2.33,<3`), **Responses API** (not Chat Completions), for all LLM roles: target, attacker, and judge. Switched from Anthropic during Phase 01 — don't mix providers without discussing
+- Target calls use `store=False` + `include=["reasoning.encrypted_content"]` (transcripts contain canaries, so nothing is stored server-side); reasoning items are replayed to the API but not kept in `Transcript.messages`
+- `Transcript.stop_reason` uses provider-neutral values (`completed` / `refusal` / `incomplete` / `max_turns`) so downstream phases never depend on OpenAI's response shapes
 - SQLite for storage (stdlib `sqlite3` is enough — no ORM needed at this scale)
 - `asyncio` for concurrent attack execution
 - `pytest` for the deterministic scorer's tests — this module should be the most heavily tested since everything else's trust depends on it
@@ -55,8 +57,12 @@ Following the phased roadmap (target agent → attack taxonomy/seed corpus → d
 - Type hints on all function signatures.
 - Every module should be runnable/testable in isolation — no module should require the full pipeline to be wired up just to unit test it.
 - Config (API keys, budget caps, model names) goes in a `.env` file, never hardcoded. Add `.env` to `.gitignore` immediately if it isn't already there.
-- Canary secrets used for exfiltration testing are obviously-fake values (e.g. clearly non-functional API-key-shaped strings), generated per-run, never real credentials.
+- Canary secrets used for exfiltration testing are realistic-looking but non-functional random values (no "canary"/"test" labels, so the target model can't tell it's being tested), generated per-run, never real credentials, and never mimicking a real provider's key format.
 - Every attack run must respect a hard iteration cap and a cost cap read from config — the orchestrator should refuse to start a run without both set.
+
+## Known limitations (revisit after Phase 09)
+
+- **Single-message attacks only.** `run_agent` takes one user message per conversation; the target's internal tool loop is multi-step, but there are no multi-turn (gradual-escalation) attacks across several user messages. The attacker, scoring attribution, and lineage are all designed around single prompts. The v1.0 robustness score says nothing about multi-turn attacks — reports should state this. Revisit after Phase 09 as an extension.
 
 ## Safety notes
 

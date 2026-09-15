@@ -1,0 +1,12 @@
+# Secrets / config — never commit
+.env
+
+# Run data — contains full attack transcripts and canary values
+data/
+*.db
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
