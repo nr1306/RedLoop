@@ -15,6 +15,14 @@ class TargetConfig:
     max_turns: int
 
 
+# Settings for the LLM judge. Separate from the target so the judge can run on a
+# stronger (or cheaper) model than the agent being tested.
+@dataclass(frozen=True)
+class JudgeConfig:
+    api_key: str
+    model: str
+
+
 # Read one setting from the environment and fail loudly if it's missing or empty,
 # instead of silently running with a None value.
 def _require(name: str) -> str:
@@ -32,4 +40,12 @@ def load_target_config() -> TargetConfig:
         api_key=_require("OPENAI_API_KEY"),
         model=_require("TARGET_MODEL"),
         max_turns=int(_require("TARGET_MAX_TURNS")),
+    )
+
+
+def load_judge_config() -> JudgeConfig:
+    load_dotenv()
+    return JudgeConfig(
+        api_key=_require("OPENAI_API_KEY"),
+        model=_require("JUDGE_MODEL"),
     )

@@ -10,18 +10,19 @@ I am building this to learn, not to ship fast. Do not "vibe code" this project �
 
 1. Before writing code for a new module, explain the approach in a few sentences (what it does, why this design) and wait for a go-ahead if the module is non-trivial (the attacker loop, the scorers, the orchestrator).
 2. Prefer small, reviewable diffs over big single-shot file generations.
-3. When you introduce a concept I haven't used before (asyncio patterns, a search/optimization technique, an eval-judge pattern), briefly explain it inline as a comment or in your response — don't just use it silently.
-4. If I ask you to just "build phase N," it's fine to move faster, but still keep functions small and named clearly enough that I can read the diff and understand it without you re-explaining from scratch.
+3. Keep `BUILD_LOG.md` up to date: at the end of each phase, append a section with what was built, the decisions behind it, and a checklist of topics I should study. I work through that list at my own pace — do NOT pause building to wait for me to learn something, and don't teach unprompted; log it instead.
+4. When you introduce a concept I haven't used before (asyncio patterns, a search/optimization technique, an eval-judge pattern), briefly explain it inline as a comment or in your response — don't just use it silently.
+5. If I ask you to just "build phase N," it's fine to move faster, but still keep functions small and named clearly enough that I can read the diff and understand it without you re-explaining from scratch.
 
 ## Current status
 
 Following the phased roadmap (target agent → attack taxonomy/seed corpus → deterministic scorer → LLM-judge scorer → static harness MVP → search theory → automated attacker loop → lineage/orchestration → reporting → patch & re-run → polish). Check with me which phase is active before assuming — update this section as phases complete.
 
 - [x] Phase 01 — Target agent
-- [ ] Phase 02 — Attack taxonomy / seed corpus
-- [ ] Phase 03 — Deterministic scorer
-- [ ] Phase 04 — LLM-judge scorer
-- [ ] Phase 05 — Static harness (MVP, v0.1)
+- [x] Phase 02 — Attack taxonomy / seed corpus
+- [x] Phase 03 — Deterministic scorer
+- [x] Phase 04 — LLM-judge scorer
+- [x] Phase 05 — Static harness (MVP, v0.1)
 - [ ] Phase 06 — Search theory (PAIR/TAP)
 - [ ] Phase 07 — Automated attacker loop (v0.5)
 - [ ] Phase 08 — Lineage + orchestration
