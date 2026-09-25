@@ -52,7 +52,14 @@ CREATE TABLE IF NOT EXISTS attempts (
     input_tokens   INTEGER NOT NULL,
     output_tokens  INTEGER NOT NULL,
     stop_reason    TEXT NOT NULL,
-    created_at     TEXT NOT NULL
+    created_at     TEXT NOT NULL,
+    -- Lineage (Phase 07/08): NULL/seed defaults for static-harness attempts.
+    parent_node_id     INTEGER,
+    seed_id            TEXT,
+    objective          TEXT,
+    depth              INTEGER NOT NULL DEFAULT 0,
+    attacker_message   TEXT,
+    attacker_rationale TEXT
 );
 
 CREATE TABLE IF NOT EXISTS scores (
@@ -220,3 +227,43 @@ def attempts_with_scores(conn: sqlite3.Connection, run_id: int) -> list[dict[str
         (run_id,),
     ).fetchall()
     return [dict(row) for row in rows]
+
+
+# --- attacker search (Phase 07) ---
+
+# Store one search-tree node: its transcript, both scores, and its lineage.
+# Returns the storage attempt id, which the caller maps to the node's own id so
+# children can point at the right parent row.
+def record_search_node(
+    conn: sqlite3.Connection,
+    run_id: int,
+    node,
+    parent_attempt_id: int | None,
+) -> int:
+    cursor = conn.execute(
+        "INSERT INTO attempts (run_id, attack_id, category, vector, repeat_index, user_message,"
+        " objectives, transcript, canaries, turns, input_tokens, output_tokens, stop_reason, created_at,"
+        " parent_node_id, seed_id, objective, depth, attacker_message, attacker_rationale)"
+        " VALUES (?, ?, 'ATTACKER', 'direct', 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            run_id,
+            node.seed_id,
+            node.user_message,
+            json.dumps([node.objective]),
+            json.dumps(asdict(node.transcript)),
+            json.dumps(asdict(node.canaries)),
+            node.transcript.turns_used,
+            node.transcript.input_tokens,
+            node.transcript.output_tokens,
+            node.transcript.stop_reason,
+            _now(),
+            parent_attempt_id,
+            node.seed_id,
+            node.objective,
+            node.depth,
+            node.user_message,
+            node.attacker_rationale,
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)

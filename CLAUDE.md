@@ -23,8 +23,8 @@ Following the phased roadmap (target agent → attack taxonomy/seed corpus → d
 - [x] Phase 03 — Deterministic scorer
 - [x] Phase 04 — LLM-judge scorer
 - [x] Phase 05 — Static harness (MVP, v0.1)
-- [ ] Phase 06 — Search theory (PAIR/TAP)
-- [ ] Phase 07 — Automated attacker loop (v0.5)
+- [x] Phase 06 — Search theory (PAIR/TAP)
+- [x] Phase 07 — Automated attacker loop (v0.5)
 - [ ] Phase 08 — Lineage + orchestration
 - [ ] Phase 09 — Reporting (v1.0)
 - [ ] Phase 10 — Patch & re-run

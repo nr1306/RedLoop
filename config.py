@@ -23,6 +23,17 @@ class JudgeConfig:
     model: str
 
 
+# Settings for the attacker LLM (Phase 07). Separate model so a creative attacker
+# is never coupled to the deliberately-weak target. Both caps are mandatory:
+# a run must not start without an iteration cap and a cost cap (see CLAUDE.md).
+@dataclass(frozen=True)
+class AttackerConfig:
+    api_key: str
+    model: str
+    max_iterations: int
+    max_cost_usd: float
+
+
 # Read one setting from the environment and fail loudly if it's missing or empty,
 # instead of silently running with a None value.
 def _require(name: str) -> str:
@@ -48,4 +59,14 @@ def load_judge_config() -> JudgeConfig:
     return JudgeConfig(
         api_key=_require("OPENAI_API_KEY"),
         model=_require("JUDGE_MODEL"),
+    )
+
+
+def load_attacker_config() -> AttackerConfig:
+    load_dotenv()
+    return AttackerConfig(
+        api_key=_require("OPENAI_API_KEY"),
+        model=_require("ATTACKER_MODEL"),
+        max_iterations=int(_require("ATTACK_MAX_ITERATIONS")),
+        max_cost_usd=float(_require("ATTACK_MAX_COST_USD")),
     )
