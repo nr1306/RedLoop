@@ -80,3 +80,22 @@ class FakeClient:
         if not self._responses:
             raise AssertionError("FakeClient ran out of scripted responses")
         return self._responses.pop(0)
+
+
+# Always returns the same response, no matter the request. Unlike FakeClient it
+# mutates no state, so it is safe to share across threads (used in orchestrator
+# concurrency tests). Records how many calls it saw, under a lock.
+class ConstantClient:
+    def __init__(self, response: Response) -> None:
+        self._response = response
+        self._lock = __import__("threading").Lock()
+        self.calls = 0
+
+    @property
+    def responses(self) -> "ConstantClient":
+        return self
+
+    def create(self, **kwargs: Any) -> Response:
+        with self._lock:
+            self.calls += 1
+        return self._response

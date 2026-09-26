@@ -30,3 +30,21 @@ def test_cost_cap() -> None:
 # Unknown models use the high fallback rate so the cap trips early, not late.
 def test_unknown_model_uses_fallback_rate() -> None:
     assert estimate_cost("who-knows", 1_000_000, 0) == 5.00
+
+
+# The lock makes concurrent updates exact: 8 threads x 100 adds = 800, no lost updates.
+def test_budget_is_thread_safe() -> None:
+    import threading
+
+    b = Budget(max_iterations=10_000, max_cost_usd=1e9)
+
+    def hammer() -> None:
+        for _ in range(100):
+            b.add_iteration()
+
+    threads = [threading.Thread(target=hammer) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert b.iterations_used == 800

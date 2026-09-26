@@ -129,8 +129,12 @@ def search(
     keep: int = 2,
     max_depth: int = 4,
     on_node: Callable[[SearchNode], None] | None = None,
+    budget: Budget | None = None,
 ) -> SearchResult:
-    budget = Budget(attacker_config.max_iterations, attacker_config.max_cost_usd)
+    # A campaign (Phase 08) passes one shared budget so its global caps span
+    # every concurrent search; a lone search makes its own from config.
+    if budget is None:
+        budget = Budget(attacker_config.max_iterations, attacker_config.max_cost_usd)
     result = SearchResult(seed_id=seed_id, objective=objective)
     next_id = 0
 
@@ -138,6 +142,11 @@ def search(
         result.nodes.append(node)
         if on_node is not None:
             on_node(node)
+
+    # If a shared campaign budget is already spent, this search does nothing.
+    if not budget.has_room():
+        result.stop_reason = budget.exhausted_reason() or "budget exhausted"
+        return result
 
     # Depth 0: run the seed exactly as written.
     root = _evaluate(

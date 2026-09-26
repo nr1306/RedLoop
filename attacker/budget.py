@@ -6,6 +6,7 @@ token counts using the rough per-model rates below — it is a runaway-spend
 safety rail, not billing-grade accounting. Update the rates if they drift.
 """
 
+import threading
 from dataclasses import dataclass, field
 
 # Rough USD per 1,000,000 tokens (input, output). ESTIMATES — adjust as needed.
@@ -33,6 +34,9 @@ class Budget:
     max_cost_usd: float
     iterations_used: int = 0
     spend_usd: float = 0.0
+    # Guards the counters so concurrent searches can share one Budget. Excluded
+    # from repr/compare — it is machinery, not data.
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.max_iterations < 1 or self.max_cost_usd <= 0:
@@ -40,15 +44,18 @@ class Budget:
 
     # Record one call's tokens against the cost cap.
     def add_spend(self, model: str, input_tokens: int, output_tokens: int) -> None:
-        self.spend_usd += estimate_cost(model, input_tokens, output_tokens)
+        with self._lock:
+            self.spend_usd += estimate_cost(model, input_tokens, output_tokens)
 
     # Record one target attempt against the iteration cap.
     def add_iteration(self) -> None:
-        self.iterations_used += 1
+        with self._lock:
+            self.iterations_used += 1
 
     # True while there is room for at least one more attempt.
     def has_room(self) -> bool:
-        return self.iterations_used < self.max_iterations and self.spend_usd < self.max_cost_usd
+        with self._lock:
+            return self.iterations_used < self.max_iterations and self.spend_usd < self.max_cost_usd
 
     # Why the run stopped, for the report and logs.
     def exhausted_reason(self) -> str | None:

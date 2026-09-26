@@ -25,8 +25,8 @@ Following the phased roadmap (target agent → attack taxonomy/seed corpus → d
 - [x] Phase 05 — Static harness (MVP, v0.1)
 - [x] Phase 06 — Search theory (PAIR/TAP)
 - [x] Phase 07 — Automated attacker loop (v0.5)
-- [ ] Phase 08 — Lineage + orchestration
-- [ ] Phase 09 — Reporting (v1.0)
+- [x] Phase 08 — Lineage + orchestration
+- [x] Phase 09 — Reporting (v1.0)
 - [ ] Phase 10 — Patch & re-run
 - [ ] Phase 11 — Portfolio polish
 

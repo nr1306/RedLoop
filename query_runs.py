@@ -19,6 +19,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run", type=int, help="Run id to show")
     parser.add_argument("--attempt", type=int, help="Show one attempt's transcript in full")
     parser.add_argument("--failures", action="store_true", help="Only attempts a scorer flagged")
+    parser.add_argument("--tree", action="store_true", help="Show attacker-search lineage as a tree")
     return parser.parse_args()
 
 
@@ -72,11 +73,43 @@ def print_attempt(conn, attempt_id: int) -> None:
             print(f"judge: ERROR {score['error']}")
 
 
+# Print an attacker search as an indented lineage tree: each attempt under the
+# attempt it was refined from, so you can see how an exploit evolved.
+def print_tree(conn, run_id: int) -> None:
+    rows = conn.execute(
+        "SELECT a.id, a.parent_node_id, a.depth, a.seed_id, a.objective, a.attacker_message,"
+        " r.success AS rule_success, j.success AS judge_success"
+        " FROM attempts a"
+        " LEFT JOIN scores r ON r.attempt_id = a.id AND r.scorer = 'rules'"
+        " LEFT JOIN scores j ON j.attempt_id = a.id AND j.scorer = 'judge'"
+        " WHERE a.run_id = ? ORDER BY a.id",
+        (run_id,),
+    ).fetchall()
+    # Group children by their parent's attempt id (None = a seed root).
+    children: dict = {}
+    for row in rows:
+        children.setdefault(row["parent_node_id"], []).append(row)
+
+    def walk(parent_id, indent) -> None:
+        for row in children.get(parent_id, []):
+            won = bool(row["rule_success"]) or bool(row["judge_success"])
+            mark = "WIN " if won else "    "
+            msg = (row["attacker_message"] or "").replace(chr(10), " ")[:80]
+            print(f"{mark}{'  ' * indent}d{row['depth']} #{row['id']} {msg}")
+            walk(row["id"], indent + 1)
+
+    seeds = {row["seed_id"] for row in rows}
+    print(f"lineage for run {run_id} — seeds: {', '.join(sorted(s for s in seeds if s))}")
+    walk(None, 0)
+
+
 def main() -> None:
     args = parse_args()
     conn = storage.connect(args.db)
     if args.attempt:
         print_attempt(conn, args.attempt)
+    elif args.run and args.tree:
+        print_tree(conn, args.run)
     elif args.run:
         print_run(conn, args.run, args.failures)
     else:
