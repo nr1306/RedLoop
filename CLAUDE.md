@@ -27,20 +27,24 @@ Following the phased roadmap (target agent → attack taxonomy/seed corpus → d
 - [x] Phase 07 — Automated attacker loop (v0.5)
 - [x] Phase 08 — Lineage + orchestration
 - [x] Phase 09 — Reporting (v1.0)
-- [ ] Phase 10 — Patch & re-run
-- [ ] Phase 11 — Portfolio polish
+- [x] Phase 10 — Patch & re-run
+- [x] Phase 11 — Portfolio polish
 
 ## Architecture
 
-- `target/` — the agent under test: system prompt + policy, mocked tools (`send_email`, `execute_code`, `search_web`, `read_file`), planted canary secrets. Tools must never have real side effects — every tool call is logged and simulated, never actually executed against a real service.
-- `attacks/seed_attacks.json` — hand-written attack corpus, each entry tagged with an OWASP LLM Top 10 category (e.g. LLM01 Prompt Injection, LLM02 Insecure Output Handling, LLM06 Excessive Agency).
-- `scoring/scorer_rules.py` — deterministic checks against the raw tool-call trace (forbidden tool calls, canary leaks). No LLM calls in this module.
-- `scoring/scorer_judge.py` — LLM-judge scorer: rubric-driven prompt that reads a full transcript and returns verdict + rationale + severity.
-- `harness/run_static.py` — runs the seed corpus against the target, logs transcripts + scores to SQLite. This is the v0.1 milestone — get this fully working before touching the attacker loop.
-- `attacker/attacker.py` — the core search loop: attacker LLM proposes an attack, target responds, both scorers grade it, attacker sees the result and proposes the next attempt (PAIR/TAP-style iterative refinement). v0.5 milestone.
-- `orchestrator/orchestrator.py` — runs multiple attack threads concurrently (asyncio), tracks attack lineage (which mutation descended from which seed), enforces hard iteration/cost budget caps.
-- `report/report.py` — aggregates a run into vulnerability-by-category breakdown, success-rate-over-iterations curve, top exploits found, and an overall robustness score. v1.0 milestone. Optional Streamlit dashboard on top.
-- `data/redloop.db` — SQLite store for transcripts, scores, and lineage. Never commit this file — it will contain full attack transcripts including canary values.
+- `config.py` — loads `.env` into frozen `TargetConfig` / `JudgeConfig` / `AttackerConfig`; fails loudly on a missing setting. Every module reads config through here.
+- `target/` — the agent under test. `policy.py` (`Policy` data + `build_system_prompt`; `DEFAULT_POLICY` and the Phase-10 `HARDENED_POLICY`), `tools.py` (4 mocked tools in OpenAI Responses format), `environment.py` (in-memory fake files + search results, plant hooks), `canaries.py` (per-run fake secrets), `agent.py` (`run_agent` ReAct loop), `transcript.py` (`Transcript`/`ToolCallRecord`, provider-neutral stop reasons). Tools never have real side effects — every call is logged and simulated.
+- `attacks/seed_attacks.json` — hand-written attack corpus (23 attacks + controls), each tagged with an OWASP LLM Top 10 category. `attacks/loader.py` validates it, renders canary placeholders (`{{API_KEY}}` etc.), and exposes the objective/vector enums.
+- `scoring/scorer_rules.py` — deterministic checks against the tool-call trace (5 violation kinds). No LLM calls. Most heavily tested module.
+- `scoring/scorer_judge.py` — LLM-judge scorer: blind, JSON-schema verdict + severity + rationale. Given canary values so it catches encoded/paraphrased leaks the rules miss.
+- `harness/run_static.py` — runs the seed corpus against the target, scores with both scorers, logs to SQLite (v0.1). `harness/storage.py` — the SQLite schema (`runs`/`attempts`/`scores`) and record/read helpers, including lineage columns.
+- `search_notes.md` — Phase 06 design spec for the attacker search (TAP: branch/prune/explore, objective-driven attacker, blind judge, lineage model).
+- `attacker/attacker.py` — the attacker LLM: proposes N improved attack variants from the target reply + judge rationale. `attacker/search.py` — the TAP search loop (branch → prune-dedupe → run+score → keep best → repeat). `attacker/budget.py` — mandatory iteration + estimated-cost caps (thread-safe). v0.5.
+- `orchestrator/orchestrator.py` — runs multiple searches concurrently (`asyncio.to_thread`) under one shared global budget + a concurrency semaphore; SQLite writes stay on the main thread.
+- `report/report.py` — aggregates a run into a robustness score (target-level), per-category breakdown, depth curve, top exploits, severity, scorer agreement. `report/render.py` — Markdown renderer. `report/replay_export.py` — exports a run's logged data (incl. tokens/cost/lineage) as JSON for the replay visualization. v1.0.
+- Entry-point CLIs (top level): `run_target.py` (one message, no storage), `run_attacks.py` (seed corpus, rule scorer, no storage), `run_judge_eval.py` (12-case judge validation), `run_attack_search.py` (single TAP search), `run_campaign.py` (concurrent campaign), `query_runs.py` (inspect stored runs, `--tree` lineage), `report_cli.py` (build a report). All support `--policy baseline|hardened` where relevant.
+- Replay visualization — a published Artifact (the "Breach Arena" console) built from `report/replay_export.py` output; game-like replay of a run's logged attempts. Kept as an Artifact, not committed source (regenerate per run).
+- `data/redloop.db` — SQLite store for transcripts, scores, and lineage. Never commit this file — it contains full attack transcripts including canary values.
 
 ## Tech stack
 

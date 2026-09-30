@@ -19,7 +19,7 @@ from config import load_attacker_config, load_judge_config, load_target_config
 from harness import storage
 from orchestrator.orchestrator import SearchTarget, run_campaign
 from run_attack_search import SOFT_SPOTS
-from target.policy import DEFAULT_POLICY
+from target.policy import DEFAULT_POLICY, HARDENED_POLICY
 
 
 def parse_args() -> argparse.Namespace:
@@ -32,6 +32,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--branching", type=int, default=3)
     parser.add_argument("--keep", type=int, default=2)
     parser.add_argument("--max-depth", type=int, default=4)
+    parser.add_argument("--policy", choices=["baseline", "hardened"], default="baseline",
+                        help="baseline = original prompt; hardened = Phase 10 patch")
     parser.add_argument("--db", type=Path, default=storage.DEFAULT_DB_PATH)
     return parser.parse_args()
 
@@ -53,6 +55,7 @@ def build_targets(args: argparse.Namespace) -> list[SearchTarget]:
 def main() -> None:
     args = parse_args()
     targets = build_targets(args)
+    policy = HARDENED_POLICY if args.policy == "hardened" else DEFAULT_POLICY
 
     target_config = load_target_config()
     attacker_config = load_attacker_config()
@@ -64,9 +67,10 @@ def main() -> None:
     conn = storage.connect(args.db)
     run_id = storage.start_run(
         conn, target_model=target_config.model, judge_model=None if args.no_judge else judge_config.model,
-        corpus_size=len(targets), repeats=1, notes="attacker campaign",
+        corpus_size=len(targets), repeats=1, notes=f"attacker campaign ({args.policy} policy)",
     )
-    print(f"run {run_id}: campaign of {len(targets)} search(es), concurrency {args.concurrency}, "
+    print(f"run {run_id}: campaign of {len(targets)} search(es), policy={args.policy}, "
+          f"concurrency {args.concurrency}, "
           f"global caps {attacker_config.max_iterations} iters / ${attacker_config.max_cost_usd}\n")
 
     # Persist one finished search tree. Runs in the main thread (asyncio callback),
@@ -85,7 +89,7 @@ def main() -> None:
 
     campaign = asyncio.run(run_campaign(
         targets, target_client, target_config, attacker_client, attacker_config,
-        judge_client, judge_config, policy=DEFAULT_POLICY,
+        judge_client, judge_config, policy=policy,
         concurrency=args.concurrency, branching=args.branching, keep=args.keep,
         max_depth=args.max_depth, on_result=persist,
     ))

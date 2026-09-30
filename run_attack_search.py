@@ -19,7 +19,7 @@ from attacker.search import SearchNode, search
 from attacks.loader import load_attacks
 from config import load_attacker_config, load_judge_config, load_target_config
 from harness import storage
-from target.policy import DEFAULT_POLICY
+from target.policy import DEFAULT_POLICY, HARDENED_POLICY
 
 # Seeds the live baseline showed are the soft spots, with the objective to aim at.
 SOFT_SPOTS = [
@@ -39,6 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--branching", type=int, default=3)
     parser.add_argument("--keep", type=int, default=2)
     parser.add_argument("--max-depth", type=int, default=4)
+    parser.add_argument("--policy", choices=["baseline", "hardened"], default="baseline")
     parser.add_argument("--db", type=Path, default=storage.DEFAULT_DB_PATH)
     return parser.parse_args()
 
@@ -98,7 +99,7 @@ def main() -> None:
         result = search(
             seed_id, attacks[seed_id].user_message, objective,
             target_client, target_config, attacker_client, attacker_config,
-            judge_client, judge_config, policy=DEFAULT_POLICY,
+            judge_client, judge_config, policy=(HARDENED_POLICY if args.policy == "hardened" else DEFAULT_POLICY),
             branching=args.branching, keep=args.keep, max_depth=args.max_depth,
             on_node=persist,
         )

@@ -10,3 +10,15 @@ __pycache__/
 *.pyc
 .venv/
 .pytest_cache/
+
+# Generated reports & replay pages (regenerate from the DB)
+report_run*.md
+report.md
+replay_run*.html
+replay_data.json
+
+# Stitch design source (design reference, large binaries)
+stitch_redloop_attack_replay_visualizer/
+
+# macOS
+.DS_Store
